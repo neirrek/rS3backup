@@ -1,0 +1,27 @@
+## YAML Template.
+---
+-
+  root: /path/to/root1
+  type: subdirectories
+  bucket_name: your_bucket_name
+  zip_encrypted: true
+  recursive: false
+  check_saved: true
+  dirs_filter:
+    - 'bak'
+  files_filter:
+    - Thumbs.db
+  active: true
+-
+  root: /path/to/root2
+  type: directory
+  bucket_name: your_bucket_name
+  key_prefix: your_key_prefix
+  zip_encrypted: false
+  recursive: true
+  check_saved: false
+  dirs_filter:
+    - '@eaDir'
+  files_filter:
+    - Thumbs.db
+  active: true

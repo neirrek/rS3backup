@@ -1,0 +1,43 @@
+RSA_KEYS_PATH: /path/to/your/rsa/keys
+
+RSA_PUBLIC_KEY: public.pem
+
+RSA_PRIVATE_KEY: private.pem
+
+CIPHER_NAME: AES-256-CBC
+
+RSA_PASSWORD: |
+  <your RSA password encoded in Base64>
+
+RSA_KEY_TAG: |
+  --K--
+
+RSA_IV_TAG: |
+  --I--
+
+ACCESS_KEY_ID: <your S3 access key ID encoded in Base64>
+
+SECRET_ACCESS_KEY: |
+  <your S3 secret password encoded in Base64>
+
+DEFAULT_BUCKET_NAME: photos-kerrien-org
+
+CA_CERT_FILE_PATH: /path/to/your/ca-cert.crt
+
+TEMP_DIR: /path/to/your/temp/dir
+
+STOP_FILE: /path/to/your/stop/file
+
+ZIP_EXTENSION: zip
+
+SAVED_MARK_FILE: saved
+
+MAIL_SMTP_SERVER: your.smtp.com
+
+MAIL_FROM_ADDRESS: from@toto.com
+
+MAIL_TO_ADDRESS: to@toto.com
+
+MAIL_FROM_WHO: John Smith
+
+MAIL_TO_WHO: John Smith
