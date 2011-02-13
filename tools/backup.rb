@@ -5,6 +5,9 @@ class Backup
 
   attr_accessor :bucket_name, :zip_encrypted, :s3
 
+  @@sent_files = []
+  @@skipped_files = []
+
   def Backup.initialize_log
     @@log ||= Logger.new('logs/backup.log', 'daily')
     @@log.level = Logger::INFO
@@ -25,6 +28,8 @@ class Backup
     @dirs_filter = (params['dirs_filter'] || []).collect { |f| f.downcase }
     @files_filter = (params['files_filter'] || []).collect { |f| f.downcase }
     @active = params['active']
+    @sent_files = []
+    @skipped_files = []
   end
 
   def backup_subdirectories
@@ -61,12 +66,33 @@ class Backup
   end
 
   def Backup.run(filename = 'config/backups.yml')
-    # Mailer.send("Your Amazon S3 backup has begun", "The backup of your datas to Amazon S3 is starting now, #{Time.now.strftime('%A %d %b, %Y at %H:%M:%S')}")
+    Backup.send_begin_mail
     backups = YAML::load(File.open(filename))
     backups.each do |backup|
       Backup.execute(backup)
     end
-    # Mailer.send("Your Amazon S3 backup has finished", "The backup of your datas to Amazon S3 has just finished, #{Time.now.strftime('%A %d %b, %Y at %H:%M:%S')}")
+    Backup.send_finish_mail
+  end
+
+  def Backup.send_begin_mail
+    Mailer.send("Your Amazon S3 backup has begun", "The backup of your datas to Amazon S3 is starting now, #{Time.now.strftime('%A %d %b, %Y at %H:%M:%S')}")
+  end
+
+  def Backup.send_finish_mail
+    body = "The backup of your datas to Amazon S3 has just finished, #{Time.now.strftime('%A %d %b, %Y at %H:%M:%S')}\n\n"
+    if @@sent_files.empty?
+      body += "No file sent.\n"
+    else
+      body += "#{@@sent_files.size} files sent:\n"
+      body = @@sent_files.inject(body) {|bd, file| bd + " - #{file}\n"}
+    end
+    if @@skipped_files.empty?
+      body += "\nNo file skipped.\n"
+    else
+      body += "\n#{@@skipped_files.size} files skipped because of upload errors:\n"
+      body = @@skipped_files.inject(body) {|bd, file| bd + " - #{file}\n"}
+    end
+    Mailer.send("Your Amazon S3 backup has finished", body)
   end
 
   def Backup.execute(params)
@@ -117,19 +143,21 @@ class Backup
     sent_bytes = 0
     filenames = Dir.entries(fullpath(@current_root, directory)).select { |entry| !File.directory?("#{fullpath(@current_root, directory, entry)}") && !@files_filter.include?(entry.downcase) }
     filenames.sort.each do |filename|
-      done = false
+      full_filename = fullpath(@current_root, directory, filename)
       times = 0
+      done = File.zero?(full_filename)
       while !done && times <= 3 do
         begin
-          sent_bytes += do_backup_file(fullpath(@current_root, directory, filename), key_prefix)
+          sent_bytes += do_backup_file(full_filename, key_prefix)
           done = true
         rescue Exception => e
           times += 1
           if times <= 3
-            @@log.info("   Error while sending file: #{fullpath(@current_root, directory, filename)}: #{e.message}")
+            @@log.info("   Error while sending file: #{full_filename}: #{e.message}")
             @@log.info("   Retrying (#{times}/3)...")
           else
-            @@log.info("   Skipping file: #{fullpath(@current_root, directory, filename)}")
+            @@skipped_files << full_filename
+            @@log.info("   Skipping file: #{full_filename}")
           end
           @s3 = initialize_s3
         end
@@ -146,6 +174,7 @@ class Backup
     start_time = Time.now
     filesize = backup_file_action.execute
     if filesize >= 0
+      @@sent_files << filename
       transfer_rate = compute_transfer_rate(filesize, start_time, Time.now)
       @@log.info("   File #{filename} sent (#{filesize} bytes uploaded at #{transfer_rate} KB/s)")
     else
@@ -154,7 +183,7 @@ class Backup
     end
     return filesize
   end
-    
+
   def fullpath(root, directory = nil, filename = nil)
     fullpath = root.nil? ? '' : "#{root}/"
     fullpath = directory.nil? ? root : "#{fullpath}#{directory}"
@@ -178,8 +207,6 @@ class Backup
   end
 
   class BackupFileAction
-
-    include S3Tools
 
     attr_accessor :bucket_name, :key_prefix, :filename, :zip_encrypted, :backup_filename, :file, :md5
 
