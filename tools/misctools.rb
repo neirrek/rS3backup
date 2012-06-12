@@ -1,5 +1,8 @@
+require 'right_aws'
 require 'ensure/encoding'
 require 'net/smtp'
+require 'yaml'
+require 'logger'
 
 class String
   # The extended characters map used by removeaccents. The accented characters
@@ -68,7 +71,7 @@ module S3Tools
 
   # Initialize a new S3 object for connecting to S3.
   def initialize_s3
-    return Aws::S3.new(decrypt_password(CONFIG['ACCESS_KEY_ID']), decrypt_password(CONFIG['SECRET_ACCESS_KEY']), :multi_thread => true, :logger => LOG_S3)
+    return RightAws::S3.new(decrypt_password(CONFIG['ACCESS_KEY_ID']), decrypt_password(CONFIG['SECRET_ACCESS_KEY']), :multi_thread => true, :logger => LOG_S3)
   end
 
   # Compute the S3 key prefix to be used for a given source directory.
